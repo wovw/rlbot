@@ -1,12 +1,12 @@
 import rlgym
 from stable_baselines3 import PPO
+from rocket_learn.ppo import PPO
 
 from rlgym.utils.reward_functions import DefaultReward
-from rlgym.utils.obs_builders import DefaultObs, AdvancedObs
+from rlgym.utils.obs_builders import DefaultObs
 from rlgym.utils.state_setters import DefaultState
 from rlgym.utils.action_parsers import DefaultAction
 from rlgym.utils.terminal_conditions.common_conditions import TimeoutCondition
-from terminal import NectoTerminalCondition
 
 from rlgym.utils.reward_functions.common_rewards.player_ball_rewards import LiuDistancePlayerToBallReward
 from reward import NectoRewardFunction
@@ -26,10 +26,8 @@ team_size = 1
 reward_fn = LiuDistancePlayerToBallReward()
 reward_fn = NectoRewardFunction()
 terminal_conditions = [TimeoutCondition(225)]
-terminal_conditions = [NectoTerminalCondition()]
 obs_builder = DefaultObs()
 obs_builder = NectoObsBuilder(Scoreboard(), None, 1)
-obs_builder = AdvancedObs()
 state_setter = DefaultState()
 action_parser = DefaultAction()
 action_parser = NectoAction()
@@ -38,27 +36,21 @@ action_parser = NectoAction()
 # env = rlgym.make()
 
 # Works
-env = rlgym.make(
-        reward_fn=reward_fn,
-        terminal_conditions=terminal_conditions,
-        obs_builder=obs_builder,
-        state_setter=DefaultState(),
-        action_parser=DefaultAction(), # These are good. Technically same as Necto
-        team_size=1, # Not working
-        spawn_opponents=False, # Not working
-        use_injector=True,
-        self_play=False,# Not working
-        auto_minimize=False
-)
-
-# Getting stuck with observation builder and sb3
 # env = rlgym.make(
 #         reward_fn=reward_fn,
 #         terminal_conditions=[TimeoutCondition(225)],
-#         obs_builder=obs_builder,
+#         obs_builder=DefaultObs(),
 #         state_setter=DefaultState(),
-#         action_parser=action_parser
+#         action_parser=DefaultAction()
 # )
+
+env = rlgym.make(
+        reward_fn=reward_fn,
+        terminal_conditions=[TimeoutCondition(225)],
+        obs_builder=obs_builder,
+        state_setter=DefaultState(),
+        action_parser=action_parser
+)
 
 # Doesn't work: ValueError: The environment is of type <class 'rlgym.envs.match.Match'>, not a Gymnasium environment. In this case, we expect OpenAI Gym to be installed and the environment to be an OpenAI Gym environment.
 # env = Match(
@@ -70,17 +62,22 @@ env = rlgym.make(
 #     )
 
 
-# Initialize PPO from stable_baselines3
-# model = PPO("MlpPolicy", env=env, verbose=1)
-
-model = PPO("MlpPolicy", env, learning_rate=0.0003, n_steps=2048, batch_size=64, n_epochs=30, gamma=0.995,
-            gae_lambda=0.95, clip_range=0.2, clip_range_vf=None, normalize_advantage=True, ent_coef=0.01, vf_coef=0.5,
-            max_grad_norm=0.5, use_sde=False, sde_sample_freq=-1, target_kl=None, stats_window_size=100,
-            tensorboard_log=None, policy_kwargs=None, verbose=1, seed=None, device='auto', _init_setup_model=True)
+# Initialize PPO from rocket_learn
+alg = PPO(
+        rollout_gen,
+        agent,
+        n_steps=logger.config.n_steps,
+        batch_size=logger.config.batch_size,
+        minibatch_size=logger.config.minibatch_size,
+        epochs=logger.config.epochs,
+        gamma=logger.config.gamma,
+        ent_coef=logger.config.ent_coef,
+        logger=logger,
+    )
 
 # Train our agent!
-model.learn(total_timesteps=100_000)
+model.learn(total_timesteps=10_000)
 
 print("Finished Learning, Saving Model...")
 
-model.save("./checkpoints/trained_bot.zip")
+model.save("./checkpoints/most_trained_bot.zip")

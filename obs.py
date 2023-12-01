@@ -71,9 +71,9 @@ class NectoObsBuilder(BatchedObsBuilder):
         players = self.n_players or 6
         entities = 1 + players + len(self._boost_locations)
         return Tuple((
+            Box(-np.inf, np.inf, (entities,)),
             Box(-np.inf, np.inf, (1, len(self._invert) - 30 + 8)),
             Box(-np.inf, np.inf, (entities, len(self._invert))),
-            Box(-np.inf, np.inf, (entities,)),
         ))
 
     @staticmethod
