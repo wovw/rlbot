@@ -1,5 +1,6 @@
 import rlgym
 from stable_baselines3 import PPO
+from rlgym_tools.sb3_utils import SB3SingleInstanceEnv
 
 from reward import NectoRewardFunction
 from rlgym.utils.obs_builders import DefaultObs
@@ -14,18 +15,21 @@ state_setter = DefaultState()
 action_parser = DefaultAction()
 terminal_conditions = [NectoTerminalCondition()]
 
-env = rlgym.make(
+rl_env = rlgym.make(
         reward_fn=reward_fn,
         terminal_conditions=terminal_conditions,
         obs_builder=obs_builder,
         state_setter=DefaultState(),
         action_parser=DefaultAction(), # These are good. Technically same as Necto
         team_size=1, # Not working
-        spawn_opponents=False, # Not working
+        # spawn_opponents=False, # Not working
         use_injector=True,
-        self_play=False,# Not working
+        self_play=True,
         auto_minimize=False
 )
+
+env = SB3SingleInstanceEnv(rl_env)
+
 print("Setting Model")
 # model = PPO("MlpPolicy", env=env, verbose=1)
 
