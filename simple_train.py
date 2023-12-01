@@ -52,24 +52,6 @@ rl_env = rlgym.make(
         auto_minimize=False
 )
 
-# Getting stuck with observation builder and sb3
-# env = rlgym.make(
-#         reward_fn=reward_fn,
-#         terminal_conditions=[TimeoutCondition(225)],
-#         obs_builder=obs_builder,
-#         state_setter=DefaultState(),
-#         action_parser=action_parser
-# )
-
-# Doesn't work: ValueError: The environment is of type <class 'rlgym.envs.match.Match'>, not a Gymnasium environment. In this case, we expect OpenAI Gym to be installed and the environment to be an OpenAI Gym environment.
-# env = Match(
-#         reward_function=DefaultReward(),
-#         terminal_conditions=[TimeoutCondition(225)],
-#         obs_builder=DefaultObs(),
-#         state_setter=DefaultState(),
-#         action_parser=DefaultAction()
-#     )
-
 env = SB3SingleInstanceEnv(rl_env)
 
 # Initialize PPO from stable_baselines3
@@ -81,7 +63,7 @@ model = PPO("MlpPolicy", env, learning_rate=0.0003, n_steps=2048, batch_size=64,
             tensorboard_log=None, policy_kwargs=None, verbose=1, seed=None, device='auto', _init_setup_model=True)
 
 # Train our agent!
-model.learn(total_timesteps=100_000)
+model.learn(total_timesteps=1_000)
 
 print("Finished Learning, Saving Model...")
 
