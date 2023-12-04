@@ -6,12 +6,6 @@ from gym.spaces import Discrete
 from rlgym.utils.action_parsers import ActionParser
 from rlgym.utils.gamestates import GameState
 
-
-# from rlgym_tools.extra_action_parsers.kbm_act import KBMAction
-
-# NectoActionOLD = KBMAction
-
-
 class NectoAction(ActionParser):
     def __init__(self):
         super().__init__()
