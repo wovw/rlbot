@@ -74,8 +74,7 @@ class CustomRewardFunction(RewardFunction):
             if player.team_num == ORANGE_TEAM:
                 alignment *= -1
             liu_dist = exp(-norm(ball_pos - pos) / 1410)  # Max driving speed
-            player_qualities[i] = (
-                self.dist_w * liu_dist + self.align_w * alignment)
+            player_qualities[i] = (self.dist_w * liu_dist + self.align_w * alignment)
 
             # TODO use only dist of closest player for entire team?
 
@@ -185,7 +184,7 @@ class CustomRewardFunction(RewardFunction):
                 player_rewards[i] += self.boost_gain_w * boost_diff
             elif car_height < GOAL_HEIGHT:
                 player_rewards[i] += self.boost_lose_w * \
-                    boost_diff * (1 - (car_height+1) / (GOAL_HEIGHT+1))
+                    boost_diff * (1 - (car_height+1) / (GOAL_HEIGHT+1)) # Still punish when car is on the ground
 
             # Encourage spinning (slightly), helps it not stop flipping at the start of training
             # and (hopefully) explore rotating in the air
