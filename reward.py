@@ -27,7 +27,7 @@ class CustomRewardFunction(RewardFunction):
             dist_w=0.25,
             align_w=0.25,
             boost_gain_w=1.5,
-            boost_lose_w=0.8,
+            boost_lose_w=0.6,
             ang_vel_w=0.005,
             touch_grass_w=0.005,
             touch_height_w=3,
@@ -185,7 +185,7 @@ class CustomRewardFunction(RewardFunction):
                 player_rewards[i] += self.boost_gain_w * boost_diff
             elif car_height < GOAL_HEIGHT:
                 player_rewards[i] += self.boost_lose_w * \
-                    boost_diff * (1 - car_height / GOAL_HEIGHT)
+                    boost_diff * (1 - (car_height+1) / (GOAL_HEIGHT+1))
 
             # Encourage spinning (slightly), helps it not stop flipping at the start of training
             # and (hopefully) explore rotating in the air
