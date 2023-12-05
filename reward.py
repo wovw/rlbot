@@ -10,7 +10,7 @@ from rlgym.utils.math import cosine_similarity
 from rocket_learn.utils.scoreboard import win_prob
 
 
-class CustomRewardFunction(RewardFunction):
+class RL2RewardFunction(RewardFunction):
     BLUE_GOAL = (np.array(BLUE_GOAL_BACK) + np.array(BLUE_GOAL_CENTER)) / 2
     ORANGE_GOAL = (np.array(ORANGE_GOAL_BACK) +
                    np.array(ORANGE_GOAL_CENTER)) / 2
