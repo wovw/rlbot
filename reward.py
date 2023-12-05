@@ -62,13 +62,16 @@ class RL2RewardFunction(RewardFunction):
     def _state_qualities(self, state: GameState):
         ball_pos = state.ball.position
 
+        # State quality refers to ball position with respect to the goal.
         state_quality = 0.5 * self.goal_dist_w * (exp(-norm(self.ORANGE_GOAL - ball_pos) / CAR_MAX_SPEED)
                                                   - exp(-norm(self.BLUE_GOAL - ball_pos) / CAR_MAX_SPEED))
         player_qualities = np.zeros(len(state.players))
+
+        # Iterate through players
         for i, player in enumerate(state.players):
             pos = player.car_data.position
 
-            # Align player->ball and player->net vectors
+            # Align player to ball and player net vectors
             alignment = 0.5 * (cosine_similarity(ball_pos - pos, ORANGE_GOAL_BACK - pos)
                                - cosine_similarity(ball_pos - pos, BLUE_GOAL_BACK - pos))
             if player.team_num == ORANGE_TEAM:
@@ -76,13 +79,14 @@ class RL2RewardFunction(RewardFunction):
             liu_dist = exp(-norm(ball_pos - pos) / 1410)  # Max driving speed
             player_qualities[i] = (self.dist_w * liu_dist + self.align_w * alignment)
 
-            # TODO use only dist of closest player for entire team?
-
         blue, orange, ticks_left = state.inverted_ball.angular_velocity
         diff = blue - orange
+
+        # Calculate a win probability
         prob = win_prob(len(state.players) // 2,
                         [ticks_left / 120],
                         np.clip([diff], -5, 5))[0]
+
         if np.isinf(ticks_left):  # Goal scored at 0 seconds / in overtime
             if diff > 0:
                 prob = 1
@@ -140,15 +144,19 @@ class RL2RewardFunction(RewardFunction):
             self.last_state = self.current_state
             self.current_state = state
             self.n = 0
+
+        # get state and player qualities
         state_quality, player_qualities = self._state_qualities(state)
         player_rewards = np.zeros_like(player_qualities)
         ball_height = state.ball.position[2]
 
+        # Iterate through players to calculate player_rewards
         for i, player in enumerate(state.players):
             last = self.last_state.players[i]
 
             car_height = player.car_data.position[2]
 
+            # Certain rewards added when player touches ball
             if player.ball_touched:
                 curr_vel = self.current_state.ball.linear_velocity
                 last_vel = self.last_state.ball.linear_velocity
@@ -161,37 +169,32 @@ class RL2RewardFunction(RewardFunction):
                 h1 = self._height_activation(CEILING_Z)
                 hx = self._height_activation(avg_height)
                 height_factor = ((hx - h0) / (h1 - h0)) ** 2
-                wall_dist_factor = 1 - \
-                    np.exp(-self.dist_to_closest_wall(*
-                           player.car_data.position[:2]) / CAR_MAX_SPEED)
-                player_rewards[i] += self.touch_height_w * \
-                    height_factor * (1 + wall_dist_factor)
+                wall_dist_factor = 1 - np.exp(-self.dist_to_closest_wall(*player.car_data.position[:2]) / CAR_MAX_SPEED)
+                player_rewards[i] += self.touch_height_w * height_factor * (1 + wall_dist_factor)
                 if player.has_flip and not last.has_flip \
                         and player.car_data.position[2] > 3 * BALL_RADIUS \
                         and np.linalg.norm(state.ball.position - player.car_data.position) < 2 * BALL_RADIUS \
-                        and cosine_similarity(state.ball.position - player.car_data.position,
-                                              -player.car_data.up()) > 0.9:
+                        and cosine_similarity(state.ball.position - player.car_data.position, -player.car_data.up()) > 0.9:
                     player_rewards[i] += self.flip_reset_w
 
-                # Changing speed of ball from standing still to supersonic (~83kph) is 1 reward
-                player_rewards[i] += self.touch_accel_w * (1 - height_factor) * norm(
-                    curr_vel - last_vel) / CAR_MAX_SPEED
+                # Drastic change of ball speed: (~83kph) is 1 reward
+                player_rewards[i] += self.touch_accel_w * (1 - height_factor) * norm(curr_vel - last_vel) / CAR_MAX_SPEED
 
-            # Encourage collecting and saving boost, sqrt to weight boost more the less it has
-            boost_diff = (np.sqrt(np.clip(player.boost_amount, 0, 1))
-                          - np.sqrt(np.clip(last.boost_amount, 0, 1)))
+            # Encourage collecting and saving boost
+            boost_diff = (np.sqrt(np.clip(player.boost_amount, 0, 1)) - np.sqrt(np.clip(last.boost_amount, 0, 1)))
             if boost_diff >= 0:
                 player_rewards[i] += self.boost_gain_w * boost_diff
             elif car_height < GOAL_HEIGHT:
-                player_rewards[i] += self.boost_lose_w * \
-                    boost_diff * (1 - (car_height+1) / (GOAL_HEIGHT+1)) # Still punish when car is on the ground
+                # Still punish when car is on the ground
+                player_rewards[i] += self.boost_lose_w * boost_diff * (1 - (car_height+1) / (GOAL_HEIGHT+1))
 
             # Encourage spinning (slightly), helps it not stop flipping at the start of training
             # and (hopefully) explore rotating in the air
-            ang_vel_norm = np.linalg.norm(
-                player.car_data.angular_velocity) / CAR_MAX_ANG_VEL
+            ang_vel_norm = np.linalg.norm(player.car_data.angular_velocity) / CAR_MAX_ANG_VEL
             player_rewards[i] += ang_vel_norm * self.ang_vel_w
 
+            # If player on the ground and the ball is above the player we lose reward.
+            # This incentivizes being in the air when the ball is.
             if player.on_ground and car_height < BALL_RADIUS:
                 player_rewards[i] -= self.touch_grass_w
 
@@ -203,10 +206,12 @@ class RL2RewardFunction(RewardFunction):
 
         mid = len(player_rewards) // 2
 
+        # Update
         player_rewards += player_qualities - self.player_qualities
         player_rewards[:mid] += state_quality - self.state_quality
         player_rewards[mid:] -= state_quality - self.state_quality
 
+        # Reset for next pass
         self.player_qualities = player_qualities
         self.state_quality = state_quality
 
@@ -215,8 +220,7 @@ class RL2RewardFunction(RewardFunction):
         d_blue = state.blue_score - self.last_state.blue_score
         d_orange = state.orange_score - self.last_state.orange_score
         blue, orange, ticks_left = state.inverted_ball.angular_velocity
-        if d_blue > 0 or d_orange > 0 \
-                or ticks_left < 0 and np.isinf(ticks_left):
+        if d_blue > 0 or d_orange > 0 or ticks_left < 0 and np.isinf(ticks_left):
             home = slice(None, mid)
             away = slice(mid, None)
             new_diff = blue - orange
@@ -230,28 +234,24 @@ class RL2RewardFunction(RewardFunction):
             distances = d_home * norm(
                 np.stack([p.car_data.position for p in state.players[away]])
                 - self.last_state.ball.position,
-                axis=-1
-            )
+                axis=-1)
 
-            # TODO Want to find something better, this could promote waiting to score when losing
             # print(f"{importance_reward=}, {old_prob=}, {new_prob=}, {ticks_left=}, "
             #       f"{old_diff=}, {new_diff=}, {blue=}, {orange=}")
             # assert new_prob >= old_prob and (old_prob >= (0.5 - 1e-10) or new_prob <= (0.5 + 1e-10))
-            player_rewards[away] -= self.goal_dist_bonus_w * \
-                (1 - exp(-distances / CAR_MAX_SPEED))
-            player_rewards[home] += (self.goal_w * d_home
-                                     + self.goal_dist_bonus_w * goal_speed / BALL_MAX_SPEED)
+            player_rewards[away] -= self.goal_dist_bonus_w * (1 - exp(-distances / CAR_MAX_SPEED))
+            player_rewards[home] += (self.goal_w * d_home + self.goal_dist_bonus_w * goal_speed / BALL_MAX_SPEED)
 
         blue = player_rewards[:mid]
         orange = player_rewards[mid:]
         bm = np.nan_to_num(blue.mean())
         om = np.nan_to_num(orange.mean())
 
-        player_rewards[:mid] = ((1 - self.team_spirit) * blue + self.team_spirit * bm
-                                - self.opponent_punish_w * om)
-        player_rewards[mid:] = ((1 - self.team_spirit) * orange + self.team_spirit * om
-                                - self.opponent_punish_w * bm)
+        # Update
+        player_rewards[:mid] = ((1 - self.team_spirit) * blue + self.team_spirit * bm - self.opponent_punish_w * om)
+        player_rewards[mid:] = ((1 - self.team_spirit) * orange + self.team_spirit * om - self.opponent_punish_w * bm)
 
+        # Reset for next pass
         self.last_state = state
         self.rewards = player_rewards
 
