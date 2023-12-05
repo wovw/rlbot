@@ -4,13 +4,7 @@ from rlgym.utils.gamestates import GameState
 from rlgym.utils.terminal_conditions.common_conditions import NoTouchTimeoutCondition, GoalScoredCondition, \
     TimeoutCondition
 
-def NectoHumanTerminalCondition(tick_skip=8):
-    return (
-        TimeoutCondition(round(30 * 120 / tick_skip)),
-        GoalScoredCondition()
-    )
-
-class NectoTerminalCondition(TerminalCondition):
+class CustomTerminalCondition(TerminalCondition):
     def __init__(self, tick_skip=8):
         super().__init__()
         self.no_touch = NoTouchTimeoutCondition(round(30 * 120 / tick_skip))

@@ -10,9 +10,10 @@ from rlgym.utils.math import cosine_similarity
 from rocket_learn.utils.scoreboard import win_prob
 
 
-class NectoRewardFunction(RewardFunction):
+class CustomRewardFunction(RewardFunction):
     BLUE_GOAL = (np.array(BLUE_GOAL_BACK) + np.array(BLUE_GOAL_CENTER)) / 2
-    ORANGE_GOAL = (np.array(ORANGE_GOAL_BACK) + np.array(ORANGE_GOAL_CENTER)) / 2
+    ORANGE_GOAL = (np.array(ORANGE_GOAL_BACK) +
+                   np.array(ORANGE_GOAL_CENTER)) / 2
 
     def __init__(
             self,
@@ -73,7 +74,8 @@ class NectoRewardFunction(RewardFunction):
             if player.team_num == ORANGE_TEAM:
                 alignment *= -1
             liu_dist = exp(-norm(ball_pos - pos) / 1410)  # Max driving speed
-            player_qualities[i] = (self.dist_w * liu_dist + self.align_w * alignment)
+            player_qualities[i] = (
+                self.dist_w * liu_dist + self.align_w * alignment)
 
             # TODO use only dist of closest player for entire team?
 
@@ -96,7 +98,8 @@ class NectoRewardFunction(RewardFunction):
 
     @staticmethod
     def _height_activation(z):
-        return np.cbrt((float(z) - 150) / CEILING_Z)  # 150 is approximate dribble height
+        # 150 is approximate dribble height
+        return np.cbrt((float(z) - 150) / CEILING_Z)
 
     @staticmethod
     def dist_to_closest_wall(x, y):
@@ -159,8 +162,11 @@ class NectoRewardFunction(RewardFunction):
                 h1 = self._height_activation(CEILING_Z)
                 hx = self._height_activation(avg_height)
                 height_factor = ((hx - h0) / (h1 - h0)) ** 2
-                wall_dist_factor = 1 - np.exp(-self.dist_to_closest_wall(*player.car_data.position[:2]) / CAR_MAX_SPEED)
-                player_rewards[i] += self.touch_height_w * height_factor * (1 + wall_dist_factor)
+                wall_dist_factor = 1 - \
+                    np.exp(-self.dist_to_closest_wall(*
+                           player.car_data.position[:2]) / CAR_MAX_SPEED)
+                player_rewards[i] += self.touch_height_w * \
+                    height_factor * (1 + wall_dist_factor)
                 if player.has_flip and not last.has_flip \
                         and player.car_data.position[2] > 3 * BALL_RADIUS \
                         and np.linalg.norm(state.ball.position - player.car_data.position) < 2 * BALL_RADIUS \
@@ -178,11 +184,13 @@ class NectoRewardFunction(RewardFunction):
             if boost_diff >= 0:
                 player_rewards[i] += self.boost_gain_w * boost_diff
             elif car_height < GOAL_HEIGHT:
-                player_rewards[i] += self.boost_lose_w * boost_diff * (1 - car_height / GOAL_HEIGHT)
+                player_rewards[i] += self.boost_lose_w * \
+                    boost_diff * (1 - car_height / GOAL_HEIGHT)
 
             # Encourage spinning (slightly), helps it not stop flipping at the start of training
             # and (hopefully) explore rotating in the air
-            ang_vel_norm = np.linalg.norm(player.car_data.angular_velocity) / CAR_MAX_ANG_VEL
+            ang_vel_norm = np.linalg.norm(
+                player.car_data.angular_velocity) / CAR_MAX_ANG_VEL
             player_rewards[i] += ang_vel_norm * self.ang_vel_w
 
             if player.on_ground and car_height < BALL_RADIUS:
@@ -230,7 +238,8 @@ class NectoRewardFunction(RewardFunction):
             # print(f"{importance_reward=}, {old_prob=}, {new_prob=}, {ticks_left=}, "
             #       f"{old_diff=}, {new_diff=}, {blue=}, {orange=}")
             # assert new_prob >= old_prob and (old_prob >= (0.5 - 1e-10) or new_prob <= (0.5 + 1e-10))
-            player_rewards[away] -= self.goal_dist_bonus_w * (1 - exp(-distances / CAR_MAX_SPEED))
+            player_rewards[away] -= self.goal_dist_bonus_w * \
+                (1 - exp(-distances / CAR_MAX_SPEED))
             player_rewards[home] += (self.goal_w * d_home
                                      + self.goal_dist_bonus_w * goal_speed / BALL_MAX_SPEED)
 
@@ -252,9 +261,11 @@ class NectoRewardFunction(RewardFunction):
         self.last_state = None
         self.rewards = None
         self.current_state = initial_state
-        self.state_quality, self.player_qualities = self._state_qualities(initial_state)
+        self.state_quality, self.player_qualities = self._state_qualities(
+            initial_state)
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: np.ndarray) -> float:
         rew = self.rewards[self.n]
         self.n += 1
-        return float(rew)  # / 3.2  # Divide to get std of expected reward to ~1 at start, helps value net a little
+        # / 3.2  # Divide to get std of expected reward to ~1 at start, helps value net a little
+        return float(rew)
