@@ -18,7 +18,7 @@ class CustomRewardFunction(RewardFunction):
     def __init__(
             self,
             team_spirit=0.6,
-            goal_w=10,
+            goal_w=12,
             win_prob_w=10,
             goal_dist_w=10,
             goal_speed_bonus_w=2.5,
